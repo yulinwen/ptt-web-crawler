@@ -44,10 +44,24 @@
 
 ```commandline
 python crawler.py -b 看板名稱 -i 起始索引 結束索引 (設為負數則以倒數第幾頁計算) 
-python crawler.py -b 看板名稱 -a 文章ID 
+python crawler.py -b 看板名稱 -a 文章ID
+python crawler.py -b 看板名稱 -ar 使用者1ID -ar 使用者2ID 
 ```
 
-### 範例
+### 範例 1
+
+爬取 PublicServan 板最新 100 頁的內容，
+作者是 abc
+
+* 直接執行腳本
+
+```commandline
+cd PttWebCrawler
+python crawler.py -b PublicServan -i -100 -1 -ar abc
+```
+
+
+### 範例 2
 
 爬取 PublicServan 板第 100 頁 (https://www.ptt.cc/bbs/PublicServan/index100.html) 
 到第 200 頁 (https://www.ptt.cc/bbs/PublicServan/index200.html) 的內容，

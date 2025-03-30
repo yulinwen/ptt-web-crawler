@@ -30,13 +30,14 @@ class PttWebCrawler(object):
     def __init__(self, cmdline=None, as_lib=False):
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
             A crawler for the web version of PTT, the largest online community in Taiwan.
-            Input: board name and page indices (or articla ID)
+            Input: board name and page indices (or article ID)
             Output: BOARD_NAME-START_INDEX-END_INDEX.json (or BOARD_NAME-ID.json)
         ''')
         parser.add_argument('-b', metavar='BOARD_NAME', help='Board name', required=True)
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument('-i', metavar=('START_INDEX', 'END_INDEX'), type=int, nargs=2, help="Start and end index")
         group.add_argument('-a', metavar='ARTICLE_ID', help="Article ID")
+        parser.add_argument('-ar', '--author', action='append', help="Filter articles by author name (can be specified multiple times)")
         parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
 
         if not as_lib:
@@ -45,18 +46,23 @@ class PttWebCrawler(object):
             else:
                 args = parser.parse_args()
             board = args.b
+            authors = args.author if hasattr(args, 'author') and args.author else None
             if args.i:
                 start = args.i[0]
+
+                if args.i[0] < 0:
+                    start = self.getLastPage(board)+args.i[0]
+
                 if args.i[1] == -1:
                     end = self.getLastPage(board)
                 else:
                     end = args.i[1]
-                self.parse_articles(start, end, board)
+                self.parse_articles(start, end, board, authors=authors)
             else:  # args.a
                 article_id = args.a
-                self.parse_article(article_id, board)
+                self.parse_article(article_id, board, authors=authors)
 
-    def parse_articles(self, start, end, board, path='.', timeout=3):
+    def parse_articles(self, start, end, board, authors=None, path='.', timeout=3):
             filename = board + '-' + str(start) + '-' + str(end) + '.json'
             filename = os.path.join(path, filename)
             self.store(filename, u'{"articles": [', 'w')
@@ -78,25 +84,32 @@ class PttWebCrawler(object):
                         href = div.find('a')['href']
                         link = self.PTT_URL + href
                         article_id = re.sub('\.html', '', href.split('/')[-1])
-                        if div == divs[-1] and i == end-start:  # last div of last page
-                            self.store(filename, self.parse(link, article_id, board), 'a')
-                        else:
-                            self.store(filename, self.parse(link, article_id, board) + ',\n', 'a')
+                        result = self.parse(link, article_id, board, filter_authors=authors)
+                        if result:  # Only store if the article matches the author filter
+                            if div == divs[-1] and i == end-start:  # last div of last page
+                                self.store(filename, result, 'a')
+                            else:
+                                self.store(filename, result + ',\n', 'a')
                     except:
                         pass
                 time.sleep(0.1)
             self.store(filename, u']}', 'a')
             return filename
 
-    def parse_article(self, article_id, board, path='.'):
+    def parse_article(self, article_id, board, authors=None, path='.'):
         link = self.PTT_URL + '/bbs/' + board + '/' + article_id + '.html'
         filename = board + '-' + article_id + '.json'
         filename = os.path.join(path, filename)
-        self.store(filename, self.parse(link, article_id, board), 'w')
-        return filename
+        result = self.parse(link, article_id, board, filter_authors=authors)
+        if result:  # Only store if the article matches the author filter
+            self.store(filename, result, 'w')
+            return filename
+        else:
+            print(f"Article {article_id} does not match the author filter.")
+            return None
 
     @staticmethod
-    def parse(link, article_id, board, timeout=3):
+    def parse(link, article_id, board, filter_authors=None, timeout=3):
         print('Processing article:', article_id)
         resp = requests.get(url=link, cookies={'over18': '1'}, verify=VERIFY, timeout=timeout)
         if resp.status_code != 200:
@@ -168,6 +181,14 @@ class PttWebCrawler(object):
 
         # print 'msgs', messages
         # print 'mscounts', message_count
+
+        # Filter by author if specified
+        if filter_authors is not None:
+            for filter_author in filter_authors:
+                if filter_author.lower() in author.lower():
+                    break
+            else:
+                return None
 
         # json data
         data = {
