@@ -44,7 +44,9 @@ def insert_to_timescaledb(ptt_stat):
     VALUES (%s, %s, %s, %s)
     ON CONFLICT (record_date, security_id) DO UPDATE SET 
         value = EXCLUDED.value,
-        last_updated_at = EXCLUDED.last_updated_at;
+        last_updated_at = EXCLUDED.last_updated_at
+    WHERE 
+        EXCLUDED.value > daily_scalar_values.value;
     """
 
     # Get current timestamp for last_updated_at
