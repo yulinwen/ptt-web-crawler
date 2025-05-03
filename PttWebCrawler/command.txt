@@ -1,0 +1,6 @@
+python crawler.py -b Stock -i -300 -1 -ar waitrop -ar f204137 -ar splendidpoem -ar robertshih -ar gnikis
+
+python crawler.py -b Stock -i -300 0 -ar waitrop -ar f204137 -ar splendidpoem -ar robertshih -ar gnikis
+
+Stockpro daily (crawl 3 pages):
+python crawler.py -b Stock -sp -i -3 -1
